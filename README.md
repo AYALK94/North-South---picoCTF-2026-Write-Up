@@ -8,12 +8,14 @@
 ---
 
 ## Challenge Description
+
 > I've set up geo-based routing - can you outsmart it?
 > You're trying to retrieve the flag, but there's a catch: access to the real service is restricted based on your geographic location. Only requests from a specific region are routed to the server that holds the flag. Everyone else is sent somewhere... less interesting.
 
 ---
 
 ## Provided Resources
+
 The challenge provided the full Nginx configuration file (`nginx.conf`):
 
 ```nginx
@@ -51,67 +53,76 @@ http {
         }
     }
 }
-
 ```
 
-Detailed Step-by-Step Solution
-Step 1: Analyze the Nginx Configuration
-By reviewing the provided nginx.conf, we can figure out how routing is handled:   
-CONF
+---
 
-GeoIP Module: The server uses the ngx_http_geoip2_module with a MaxMind GeoLite2 database to inspect the incoming client's country code.   
-CONF
+## Detailed Step-by-Step Solution
 
-The Condition: The server checks $geoip2_data_country_code.   
-CONF
+### Step 1: Analyze the Nginx Configuration
 
-If the country code matches IS (which stands for Iceland), the request is forwarded to the backend server http://south (the server holding the flag).   
-CONF
+By reviewing the provided `nginx.conf`, we can figure out how routing is handled:
 
-If the request comes from any other region, it falls through and gets routed to http://north (the decoy server that displays a restricted/boring message).   
-CONF
+* **GeoIP Module:** The server uses the `ngx_http_geoip2_module` with a MaxMind GeoLite2 database to inspect the incoming client's country code.
+* **The Condition:** The server checks `$geoip2_data_country_code`.
+  * If the country code matches **IS** (which stands for Iceland), the request is forwarded to the backend server `http://south` (the server holding the flag).
+  * If the request comes from any other region, it falls through and gets routed to `http://north` (the decoy server that displays a restricted/boring message).
 
-Step 2: Understand Why Header Spoofing Fails
-Many web challenges allow users to fake their IP using HTTP headers like X-Forwarded-For or X-Real-IP. However, because Nginx evaluates the actual underlying TCP connection socket IP against the binary MaxMind GeoIP database (GeoLite2-Country.mmdb), HTTP header spoofing will not work. Our actual source routing IP must appear to originate from Iceland.
+### Step 2: Understand Why Header Spoofing Fails
 
-Step 3: Configure Tor for Geolocation Bypassing
+Many web challenges allow users to fake their IP using HTTP headers like `X-Forwarded-For` or `X-Real-IP`. However, because Nginx evaluates the actual underlying TCP connection socket IP against the binary MaxMind GeoIP database (`GeoLite2-Country.mmdb`), HTTP header spoofing will not work. Our actual source routing IP must appear to originate from Iceland.
+
+### Step 3: Configure Tor for Geolocation Bypassing
+
 To make our traffic appear as if it is coming from Iceland, we can use the Tor network and enforce a strict Exit Node constraint.
 
 Start the Tor service:
 
-Bash
+```bash
 sudo systemctl restart tor
-Edit the Tor configuration file (/etc/tor/torrc):
+```
+
+Edit the Tor configuration file (`/etc/tor/torrc`):
 Open the file using a text editor:
 
-Bash
+```bash
 sudo nano /etc/tor/torrc
+```
+
 Add Exit Node rules:
 Append the following lines to force Tor to route traffic exclusively through Icelandic exit nodes:
 
-Plaintext
+```text
 ExitNodes {is}
 StrictNodes 1
+```
+
 Restart Tor to apply changes:
 
-Bash
+```bash
 sudo systemctl restart tor
-Step 4: Retrieve the Flag
-With Tor routing our connection through Iceland, we can issue a curl request through the local Tor SOCKS5 proxy (running on port 9050) to hit the target URL:
+```
 
-Bash
-curl --socks5 127.0.0.1:9050 [http://chatelaine.cylabacademy.net:41717/](http://chatelaine.cylabacademy.net:41717/)
-Step 5: Output & Flag
-The server evaluates our connection as coming from Iceland (IS), routes us to the south upstream backend[cite: 1], and successfully returns the flag:
+### Step 4: Retrieve the Flag
 
-HTML
+With Tor routing our connection through Iceland, we can issue a `curl` request through the local Tor SOCKS5 proxy (running on port 9050) to hit the target URL:
+
+```bash
+curl --socks5 127.0.0.1:9050 http://chatelaine.cylabacademy.net:41717/
+```
+
+### Step 5: Output & Flag
+
+The server evaluates our connection as coming from Iceland (IS), routes us to the south upstream backend, and successfully returns the flag:
+
+```html
 <!DOCTYPE html>
 <html>
     <head>
         <meta charset="utf-8" />
         <title>North-South</title>
         <link rel="stylesheet" type="text/css" href="/static/css/materialize.min.css" />
-        <link href="[https://fonts.googleapis.com/icon?family=Material+Icons](https://fonts.googleapis.com/icon?family=Material+Icons)" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     </head>
     <body>
         <nav>
@@ -127,6 +138,12 @@ HTML
         <script src="/static/js/materialize.min.js"></script>
     </body>
 </html>
-Flag
-Plaintext
-academy{g30_b453d_r0u71n9_cec80706}
+```
+
+---
+
+## Flag
+
+```text
+academy{***********************}
+```
